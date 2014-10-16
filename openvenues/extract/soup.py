@@ -227,8 +227,9 @@ def extract_address_elements(soup):
     items = []
 
     for addr in soup.select('address'):
-        items.append({'item_type': ADDRESS_ELEMENT_TYPE, 'address': BeautifulSoup(br2nl(unicode(addr))).text.strip()})
-
+        html = unicode(addr)
+        items.append({'item_type': ADDRESS_ELEMENT_TYPE, 'address': BeautifulSoup(br2nl(html)).text.strip(),
+            'original_html': html})
     return items
 
 def extract_geotags(soup):
@@ -266,12 +267,20 @@ def extract_geotags(soup):
     if placename:
         placename = placename[0]
         value, value_attr = tag_value_and_attr(placename)
-        item['geotags.placename'] = value.strip()
+        if value:
+            item['geotags.placename'] = value.strip()
 
     if region:
         region = region[0]
         value, value_attr = tag_value_and_attr(region)
-        item['geotags.region'] = value.strip()
+        if value:
+            item['geotags.region'] = value.strip()
+
+    if title:
+        title = title[0]
+        value, value_attr = tag_value_and_attr(title)
+        if value:
+            item['geotags.title'] = value.strip()
 
     return item or None
 
@@ -298,7 +307,7 @@ def opengraph_item(og_tags):
     latitude_value = None
     for val in ('og:latitude', 'og:lat'):
         if val in og_tags:
-            latitude_val = val
+            latitude_value = val
 
     longitude_value = None
     for val in ('og:longitude', 'og:lng'):
@@ -313,11 +322,11 @@ def opengraph_item(og_tags):
             latitude = og_tags[latitude_value].strip()
             longitude = og_tags[longitude_value].strip()
         except Exception:
-            return None
+            pass
 
         if latitude and longitude:
-            item['latitude'] = latitude
-            item['longitude'] = longitude
+            item['og:latitude'] = latitude
+            item['og:longitude'] = longitude
 
     address_props = gen_props(['street-address', 'locality', 'region', 'postal-code', 'country-name', 'phone_number'])
 
