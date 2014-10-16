@@ -93,7 +93,7 @@ class MicrodataJob(CommonCrawlJob):
 
             basic_metadata = extract_basic_metadata(soup)
 
-            items = list(chain(*[schema_dot_org_items, rdfa_items, vcards, address_elements, geotags, google_maps_embeds]))
+            items = list(chain(*(c for c in (schema_dot_org_items, rdfa_items, vcards, address_elements, geotags, google_maps_embeds) if c)))
             if opengraph_tags:
                 for og in opengraph_tags:
                     i = opengraph_item(og)
