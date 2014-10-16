@@ -33,7 +33,7 @@ class MicrodataJob(CommonCrawlJob):
             if not item_type:
                 continue
             if 'properties' in item:
-                props = item['properties']
+                props = [p['name'] for p in item['properties']]
             else:
                 props = [k for k in item.keys() if k != 'item_type']
             for prop in props:
