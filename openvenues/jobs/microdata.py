@@ -5,7 +5,7 @@ contains_microdata_regex = re.compile('vcard|itemtype|typeof|maps\.google|(?:(?:
 
 logger = logging.getLogger('microdata_job')
 
-class MicrodataURLs(CommonCrawlJob):
+class MicrodataJob(CommonCrawlJob):
     valid_charsets = set(['utf-8', 'iso-8859-1', 'latin-1', 'ascii'])
 
     def prefix_key(self, prefix, key):
@@ -128,4 +128,4 @@ class MicrodataURLs(CommonCrawlJob):
             return
 
 if __name__ == '__main__':
-   MicrodataURLs.run() 
+   MicrodataJob.run() 
