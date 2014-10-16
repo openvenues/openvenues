@@ -26,18 +26,50 @@ class MicrodataJob(CommonCrawlJob):
     def detect_encoding(self, content):
         return cchardet.detect(content)['encoding'] 
 
+    def report_vcard_item(self, item):
+        have_latlon = False
+        for prop in item.get('properties'):
+            propname = prop.get('name')
+            if propname == 'street_address':
+                self.increment_counter('commoncrawl', 'vcard:street_address')
+            elif propname == 'postal_code':
+                self.increment_counter('commoncrawl', 'vcard:postal_code')
+            elif propname == 'org_name':
+                self.increment_counter('commoncrawl', 'vcard:org_name')
+            elif propname in ('latitude', 'longitude') and not have_latlon:
+                self.increment_counter('commoncrawl', 'vcard:geo')
+                have_latlon = True
+
+    def report_schema_dot_org_item(self, item):
+        for prop in item.get('properties'):
+            if prop.get('name')=='address':
+                address_props = prop.get('properties', [])
+                for aprop in address_props:
+                    if aprop.get('name')=='streetAddress':
+                        have_address=True
+            elif prop.get('name') == 'geo':
+                have_lat_lon = True
+            if have_address and have_lat_lon:
+                break
+        if have_address:
+            self.increment_counter('commoncrawl', 'schema.org:address', 1)
+        if have_lat_lon:
+            self.increment_counter('commoncrawl', 'schema.org:geo', 1)
+
     def report_items(self, items):
         self.increment_counter('commoncrawl', 'sites with places', 1)
         for item in items:
             item_type = item.get('item_type')
             if not item_type:
                 continue
-            if 'properties' in item:
-                props = [p['name'] for p in item['properties']]
+            elif item_type == VCARD_TYPE:
+                self.report_vcard_item(item)
+            elif item_type == SCHEMA_DOT_ORG_TYPE:
+                self.report_schema_dot_org_item(item)
             else:
-                props = [k for k in item.keys() if k != 'item_type']
-            for prop in props:
-                self.increment_counter('commoncrawl', u':'.join([item_type, prop]), 1)
+                props = [k for k in item.keys() if k not in ('attributes', 'item_type', 'value_attr', 'text')]
+                for prop in props:
+                    self.increment_counter('commoncrawl', u':'.join([item_type, prop]), 1)
 
     def report_social(self, social):
         for k, vals in social.iteritems():
