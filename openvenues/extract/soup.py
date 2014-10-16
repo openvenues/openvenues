@@ -16,6 +16,7 @@ def make_links_absolute(soup, url):
 
 def extract_basic_metadata(soup):
     title_tags = soup.select('meta[property="og:title"]') + soup.select('meta[name="title"]') + soup.find_all('title')
+    title = None
     for t in title_tags:
         value, value_attr = tag_value_and_attr(t)
         if value and value.strip():
