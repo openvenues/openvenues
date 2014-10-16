@@ -7,6 +7,7 @@ RDFA_TYPE = 'rdfa'
 ADDRESS_ELEMENT_TYPE = 'address'
 GOOGLE_MAP_EMBED_TYPE = 'gmap'
 GOOGLE_MAP_SHORTENED = 'gmap_short'
+GEOTAG_TYPE = 'geotag'
 OG_TAG_TYPE = 'og'
 
 property_values = {

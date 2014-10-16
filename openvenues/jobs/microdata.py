@@ -30,6 +30,8 @@ class MicrodataJob(CommonCrawlJob):
         self.increment_counter('commoncrawl', 'sites with places', 1)
         for item in items:
             item_type = item.get('item_type')
+            if not item_type:
+                continue
             for prop in item:
                 if prop != 'item_type':
                     self.increment_counter('commoncrawl', u':'.join([item_type, prop]), 1)
@@ -115,8 +117,8 @@ class MicrodataJob(CommonCrawlJob):
                     ret['social'] = social_handles
                     self.report_social(social_handles)
 
-                if og_tags:
-                    ret['og'] = og_tags
+                if opengraph_tags:
+                    ret['og'] = opengraph_tags
 
                 if basic_metadata:
                     ret.update(basic_metadata)

@@ -259,6 +259,7 @@ def extract_geotags(soup):
 
     item = {}
     if latitude and longitude:
+        item['item_type'] = GEOTAG_TYPE
         item['latitude'] = latitude
         item['longitude'] = longitude
 
@@ -325,6 +326,7 @@ def opengraph_item(og_tags):
         item.update(address_props)
 
     if have_address or have_latlon:
+        item['item_type'] = OG_TAG_TYPE
         title_props = gen_props(['title', 'description', 'locale', 'site_name', 'type', 'url'])
         item.update(title_props)
 
