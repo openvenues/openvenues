@@ -41,6 +41,8 @@ class MicrodataJob(CommonCrawlJob):
                 have_latlon = True
 
     def report_schema_dot_org_item(self, item):
+        have_address = False
+        have_latlon = False
         for prop in item.get('properties'):
             if prop.get('name')=='address':
                 address_props = prop.get('properties', [])
@@ -48,12 +50,12 @@ class MicrodataJob(CommonCrawlJob):
                     if aprop.get('name')=='streetAddress':
                         have_address=True
             elif prop.get('name') == 'geo':
-                have_lat_lon = True
-            if have_address and have_lat_lon:
+                have_latlon = True
+            if have_address and have_latlon:
                 break
         if have_address:
             self.increment_counter('commoncrawl', 'schema.org:address', 1)
-        if have_lat_lon:
+        if have_latlon:
             self.increment_counter('commoncrawl', 'schema.org:geo', 1)
 
     def report_items(self, items):
