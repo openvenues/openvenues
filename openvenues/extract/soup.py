@@ -1,4 +1,5 @@
 from collections import *
+from bs4 import BeautifulSoup
 from openvenues.extract.util import *
 
 def tag_value_and_attr(tag):
