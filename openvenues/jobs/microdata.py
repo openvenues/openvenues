@@ -36,7 +36,7 @@ class MicrodataJob(CommonCrawlJob):
 
     def report_social(self, social):
         for k, vals in social.iteritems():
-            self.increment_counter('commoncrawl', 'url type {}'.format(k), len(values))
+            self.increment_counter('commoncrawl', 'url type {}'.format(k), len(vals))
 
     def process_record(self, record):
         content = None
