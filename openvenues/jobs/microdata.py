@@ -95,10 +95,9 @@ class MicrodataJob(CommonCrawlJob):
 
             items = list(chain(*(c for c in (schema_dot_org_items, rdfa_items, vcards, address_elements, geotags, google_maps_embeds) if c)))
             if opengraph_tags:
-                for og in opengraph_tags:
-                    i = opengraph_item(og)
-                    if i:
-                        items.append(i)
+                i = opengraph_item(opengraph_tags)
+                if i:
+                    items.append(i)
 
             social_handles = extract_social_handles(soup)
 
