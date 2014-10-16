@@ -27,7 +27,7 @@ property_values = {
 br_regex = re.compile('<br[\s]*/?>', re.I)
 
 def br2nl(text):
-	return br_regex.sub('\n', text)
+    return br_regex.sub('\n', text)
 
 latlon_splitter = re.compile('[\s]*;[\s]*')
 latlon_comma_splitter = re.compile('[\s]*,[\s]*')

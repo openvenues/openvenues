@@ -27,12 +27,12 @@ class MicrodataJob(CommonCrawlJob):
         return cchardet.detect(content)['encoding'] 
 
     def report_items(self, items):
-    	self.increment_counter('commoncrawl', 'sites with places', 1)
-    	for item in items:
+        self.increment_counter('commoncrawl', 'sites with places', 1)
+        for item in items:
             item_type = item.get('item_type')
             for prop in item:
-            	if prop != 'item_type':
-            		self.increment_counter('commoncrawl', u':'.join([item_type, prop]), 1)
+                if prop != 'item_type':
+                    self.increment_counter('commoncrawl', u':'.join([item_type, prop]), 1)
 
     def report_social(self, social):
         for k, vals in social.iteritems():
@@ -105,10 +105,10 @@ class MicrodataJob(CommonCrawlJob):
             ret = {}
             if items:
                 self.report_items(items)
-            	ret['items'] = items
+                ret['items'] = items
 
                 if social_handles:
-                	ret['social'] = social_handles
+                    ret['social'] = social_handles
                     self.report_social(social_handles)
 
                 if og_tags:
