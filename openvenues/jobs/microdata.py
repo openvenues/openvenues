@@ -1,7 +1,7 @@
 from openvenues.jobs.common_crawl import *
 from openvenues.extract.soup import *
 
-contains_microdata_regex = re.compile('vcard|itemtype|typeof|maps\.google|(?:(?:google.[a-z]+(?:\.[a-z]{2,3}){0,1})|(?:goo.gl))/maps|property|og:', re.I | re.UNICODE)
+contains_microdata_regex = re.compile('vcard|itemtype|typeof|maps\.google|(?:(?:google.[a-z]+(?:\.[a-z]{2,3}){0,1})|(?:goo.gl))/maps|address|og:latitude|og:postal_code|og:street_address', re.I | re.UNICODE)
 
 logger = logging.getLogger('microdata_job')
 
@@ -32,9 +32,12 @@ class MicrodataJob(CommonCrawlJob):
             item_type = item.get('item_type')
             if not item_type:
                 continue
-            for prop in item:
-                if prop != 'item_type':
-                    self.increment_counter('commoncrawl', u':'.join([item_type, prop]), 1)
+            if 'properties' in item:
+                props = item['properties']
+            else:
+                props = [k for k in item.keys() if k != 'item_type']
+            for prop in props:
+                self.increment_counter('commoncrawl', u':'.join([item_type, prop]), 1)
 
     def report_social(self, social):
         for k, vals in social.iteritems():
