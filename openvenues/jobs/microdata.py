@@ -89,12 +89,13 @@ class MicrodataJob(CommonCrawlJob):
             address_elements = extract_address_elements(soup)
             opengraph_tags = extract_opengraph_tags(soup)
             google_maps_embeds = extract_google_map_embeds(soup)
+            geotags = extract_geotags(soup)
+
             if geotags:
                 geotags = [geotags]
 
             basic_metadata = extract_basic_metadata(soup)
 
-            geotags = extract_geotags(soup)
 
 
             items = list(chain(*(c for c in (schema_dot_org_items, rdfa_items, vcards, address_elements, geotags, google_maps_embeds) if c)))
