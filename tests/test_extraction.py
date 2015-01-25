@@ -121,7 +121,7 @@ class TestExtraction(unittest.TestCase):
 
                     if name == 'url':
                         have_url = True
-                        self.assertEqual(value, 'www.hootanannybrixton.co.uk')
+                        self.assertEqual(value, 'http://www.hootanannybrixton.co.uk')
 
         self.assertTrue(have_vcard)
         self.assertTrue(have_name)

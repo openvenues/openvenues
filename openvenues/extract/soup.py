@@ -247,7 +247,7 @@ def extract_vcards(soup):
 
     def gen_prop(name, selector):
         prop = None
-        if result:
+        if selector:
             result = selector[0]
             prop = {'name': name}
             text = (result.text or u'').strip()
