@@ -9,23 +9,30 @@ GOOGLE_MAP_EMBED_TYPE = 'gmap'
 GOOGLE_MAP_SHORTENED = 'gmap_short'
 GEOTAG_TYPE = 'geotag'
 OG_TAG_TYPE = 'og'
+OG_BUSINESS_TAG_TYPE = 'og_business'
+
+HOPSTOP_MAP_TYPE = 'hopstop.map'
+HOPSTOP_ROUTE_TYPE = 'hopstop.route'
+
+MAPPOINT_EMBED_TYPE = 'mappoint.embed'
 
 property_values = {
-    'meta':     'content',
-    'audio':    'src',
-    'embed':    'src',
-    'iframe':   'src',
-    'img':      'src',
-    'source':   'src',
-    'video':    'src',
-    'a':        'href',
-    'area':     'href',
-    'link':     'href',
-    'object':   'data',
-    'time':     'datetime',
+    'meta': 'content',
+    'audio': 'src',
+    'embed': 'src',
+    'iframe': 'src',
+    'img': 'src',
+    'source': 'src',
+    'video': 'src',
+    'a': 'href',
+    'area': 'href',
+    'link': 'href',
+    'object': 'data',
+    'time': 'datetime',
 }
 
 br_regex = re.compile('<br[\s]*/?>', re.I)
+
 
 def br2nl(text):
     return br_regex.sub('\n', text)
@@ -35,6 +42,7 @@ latlon_comma_splitter = re.compile('[\s]*,[\s]*')
 
 UNINTERESTING_PLACE_TYPES = set(s.lower() for s in [
     'Airport',
+    'Airline',
     'AutoRepair',
     'ApartmentComplex',
     'Residence',
@@ -49,6 +57,13 @@ UNINTERESTING_PLACE_TYPES = set(s.lower() for s in [
 ])
 
 PLACE_SCHEMA_TYPES = dict([(s.lower(), s) for s in [
+    'Organization',
+    'Corporation',
+    'EducationalOrganization',
+    'GovernmentOrganization',
+    'NGO',
+    'PerformingGroup',
+    'SportsOrganization',
     'Place',
     'AdministrativeArea',
     'City',

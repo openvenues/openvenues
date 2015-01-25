@@ -1,6 +1,10 @@
+import ujson as json
+
 from collections import *
-from bs4 import BeautifulSoup
+from itertools import chain
+from bs4 import BeautifulSoup, SoupStrainer
 from openvenues.extract.util import *
+
 
 def tag_value_and_attr(tag):
     value_attr = None
@@ -11,9 +15,18 @@ def tag_value_and_attr(tag):
         value = tag.text.strip()
     return value, value_attr
 
-def make_links_absolute(soup, url):
-    for tag in soup.find_all('a', href=True):
-        tag['href'] = urlparse.urljoin(url, tag['href'])
+
+def extract_links(soup):
+    def not_nofollow(rel):
+        return rel != 'nofollow'
+
+    for tag in soup.find_all('a', attrs={'href': True,
+                                         'rel': not_nofollow}):
+        link = tag['href']
+        # Make link absolute
+        link = urlparse.urljoin(url, link)
+        yield link
+
 
 def extract_basic_metadata(soup):
     title_tags = soup.select('meta[property="og:title"]') + soup.select('meta[name="title"]') + soup.find_all('title')
@@ -38,16 +51,73 @@ def extract_basic_metadata(soup):
                 ret['description'] = description
                 break
 
-    return ret        
+    canonical = soup.select('link[rel="canonical"]')
+    if canonical and canonical[0].get('href'):
+        ret['canonical'] = canonical[0]['href']
+
+    alternates = soup.select('link[rel="alternate"]')
+    if alternates:
+        ret['alternates'] = [{'link': tag['href'],
+                              'lang': tag.get('hreflang')
+                             } for tag in alternates if tag.get('href')]
+
+    rel_tag = soup.select('[rel="tag"]')
+    if rel_tag:
+        all_tags = []
+        for t in rel_tag:
+            tag = {}
+            value = t.text.strip()
+            if value:
+                tag['value'] = value
+            link, link_attr = tag_value_and_attr(t)
+            if link_attr and value:
+                tag['link'] = link_attr
+                tag['link_value'] = link
+            elif link_attr:
+                tag['value'] = link
+                tag['attr'] = link_attr
+            else:
+                continue
+            all_tags.append(tag)
+
+        ret['tags'] = all_tags
+   
+    return ret
+
+
+# No venues on Null Island
+def latlon_valid(latitude, longitude):
+    try:
+        return float(latitude) != 0.0 and float(longitude) != 0.0
+    except Exception:
+        return False
+
 
 def extract_schema_dot_org(soup, use_rdfa=False):
     items = []
-    queue = deque([(None, tag) for tag in soup.find_all(True, recursive=False)])
 
-    scope_attr = 'itemtype' if not use_rdfa else 'typeof'
-    prop_attr = 'itemprop' if not use_rdfa else 'property'
+    scope_attr = 'itemtype'
+    prop_attr = 'itemprop'
 
     schema_type = SCHEMA_DOT_ORG_TYPE if not use_rdfa else RDFA_TYPE
+
+    xmlns = None
+
+    if use_rdfa:
+        # Verify that we have xmlns defined
+        for tag in soup.find_all(True):
+            data_vocabulary = [k for k, v in tag.attrs.iteritems()
+                           if k.startswith('xmlns:') and 'data-vocabulary' in v]
+            if data_vocabulary:
+                data_vocabulary = data_vocabulary[0]
+                break
+        if not data_vocabulary:
+            return items
+        else:
+            xmlns = data_vocabulary.split(':', 1)[-1]
+
+
+    queue = deque([(None, tag) for tag in soup.find_all(True, recursive=False)])
 
     while queue:
         parent_item, tag = queue.popleft()
@@ -58,22 +128,46 @@ def extract_schema_dot_org(soup, use_rdfa=False):
 
         item = None
         prop = None
+
+        has_vocab = False
         item_scope = tag.get(scope_attr)
+        
+        if not item_scope and use_rdfa:
+            has_vocab = bool(tag.get('vocab'))
+            item_scope = tag.get('typeof', tag.get('vocab'))
+            if not item_scope or not item_scope.startswith('{}:'.format(xmlns)):
+                item_scope = None
+
+
         item_prop = tag.get(prop_attr)
         item_type = item_scope
 
+        if not item_prop and use_rdfa:
+            item_prop = tag.get('property')
+            if not item_prop or not item_prop.startswith('{}:'.format(xmlns)):
+                item_prop = tag.get('rel', [])
+                item_prop = [p for p in item_prop if p.startswith('{}:'.format(xmlns))]
+                if not item_prop:
+                    item_prop = None
+
         if item_prop:
             prop_name = item_prop
+            if use_rdfa:
+                prop_name = prop_name.split(':', 1)[-1]
 
             prop = {'name': prop_name}
             value_attr = None
             if not item_scope:
                 value, value_attr = tag_value_and_attr(tag)
+                if use_rdfa and not value and tag.get('content'):
+                    value, value_attr = tag['content'], 'content'
+
                 prop['value'] = value
             attributes = {k: v for k, v in tag.attrs.iteritems() if k not in (scope_attr, prop_attr)}
             if value_attr:
                 prop['text'] = tag.text.strip()
                 prop['value_attr'] = value_attr 
+
             if attributes:
                 prop['attributes'] = attributes
             if current_item is not None:
@@ -87,7 +181,10 @@ def extract_schema_dot_org(soup, use_rdfa=False):
                 item = {} 
             is_place_item = False
             if item_type:
-                item_type = item_type.split('/')[-1]
+                if not use_rdfa:
+                    item_type = item_type.split('/')[-1]
+                elif use_rdfa and xmlns and item_type.startswith('{}:'.format(xmlns)):
+                    item_type = item_type.split(':', 1)[-1]
                 is_place_item = item_type.lower() in PLACE_SCHEMA_TYPES
 
             item.update({
@@ -98,6 +195,7 @@ def extract_schema_dot_org(soup, use_rdfa=False):
 
             if is_place_item:
                 items.append(item)
+                
             current_item = item
             
         queue.extend([(current_item, child) for child in tag.find_all(True, recursive=False)])
@@ -128,6 +226,7 @@ social_href_patterns = {
 
 }
 
+
 def extract_social_handles(soup):
     max_matches = 0
     ids = defaultdict(list)
@@ -139,6 +238,7 @@ def extract_social_handles(soup):
             value, value_attr = tag_value_and_attr(m)
             ids[site].append(value)
     return dict(ids)
+
 
 def extract_vcards(soup):
     items = []
@@ -158,70 +258,63 @@ def extract_vcards(soup):
                 prop = None
         return prop
 
-
     for vcard in soup.select('.vcard'):
         item = {}
         properties = []
+        have_address = False
 
-        address = vcard.select('.adr')
-        if address: 
-            have_address = False
+        street = gen_prop('street_address', vcard.select('.street-address'))
+        if street:
+            properties.append(street)
+        locality = gen_prop('locality', vcard.select('.locality'))
+        if locality:
+            properties.append(locality)
+        region = gen_prop('region', vcard.select('.region'))
+        if region:
+            properties.append(region)
+        postal_code = gen_prop('postal_code', vcard.select('.postal-code'))
+        if postal_code:
+            properties.append(postal_code)
+        country = gen_prop('country', vcard.select('.country-name'))
+        if country:
+            properties.append(country)
+        have_address = len(properties) > 0
+        if have_address:
+            org_name = gen_prop('org_name', vcard.select('.org'))
+            if org_name:
+                properties.append(org_name)
+            name = gen_prop('name', vcard.select('.fn'))
+            if name:
+                properties.append(name)
+            photo = gen_prop('photo', vcard.select('.photo'))
+            if photo:
+                properties.append(photo)
+            vcard_url = gen_prop('url', vcard.select('.url'))
+            if vcard_url:
+                properties.append(vcard_url)
+            telephone = gen_prop('telephone', vcard.select('.tel'))
+            if telephone:
+                properties.append(telephone)
+            category = gen_prop('category', vcard.select('.category'))
+            if category:
+                properties.append(category)
+       
+        latitude = gen_prop('latitude', vcard.select('.latitude'))
+        longitude = gen_prop('longitude', vcard.select('.longitude'))
+        if not latitude and longitude:
+            latitude = gen_prop('latitude', vcard.select('.p-latitude'))
+            longtitude = gen_prop('longitude', vcard.select('.p-longitude'))
+        
+        if latitude and longitude:
+            properties.append(latitude)
+            properties.append(longitude)
 
-            properties = []
-            address = address[0]
-            street = gen_prop('street_address', address.select('.street-address'))
-            if street:
-                properties.append(street)
-            locality = gen_prop('locality', address.select('.locality'))
-            if locality:
-                properties.append(locality)
-            region = gen_prop('region', address.select('.region'))
-            if region:
-                properties.append(region)
-            postal_code = gen_prop('postal_code', address.select('.postal-code'))
-            if postal_code:
-                properties.append(postal_code)
-            country = gen_prop('country_name', address.select('.country-name'))
-            if country:
-                properties.append(country)
-            have_address = len(properties) > 0
-            if have_address:
-                org_name = gen_prop('org_name', vcard.select('.org'))
-                if org_name:
-                    properties.append(org_name)
-                name = gen_prop('name', vcard.select('.fn')) 
-                if name:
-                    properties.append(name) 
-                vcard_url = gen_prop('url', vcard.select('.url'))
-                if vcard_url:
-                    properties.append(vcard_url)
-                telephone = gen_prop('telephone', vcard.select('.tel'))
-                if telephone:
-                    properties.append(telephone)
-           
-            geo = vcard.select('.geo')
-            latitude = None
-            longitude = None
-            if geo:
-                geo = geo[0]
-                latitude = gen_prop('latitude', geo.select('.latitude'))
-                longitude = gen_prop('longitude', geo.select('.longitude'))
-            else:
-                geo = vcard.select('.h-geo')
-                if geo:
-                    geo = geo[0]
-                    latitude = gen_prop('latitude', geo.select('.p-latitude'))
-                    longtitude = gen_prop('longitude', geo.select('.p-longitude'))
-                
-            if latitude and longitude:
-                properties.append(latitude)
-                properties.append(longitude)
-
-            if properties:
-                item['item_type'] = VCARD_TYPE
-                item['properties'] = properties  
-                items.append(item)
+        if properties:
+            item['item_type'] = VCARD_TYPE
+            item['properties'] = properties  
+            items.append(item)
     return items
+
 
 def extract_address_elements(soup):
     items = []
@@ -232,8 +325,8 @@ def extract_address_elements(soup):
             'original_html': html})
     return items
 
-def extract_geotags(soup):
 
+def extract_geotags(soup):
     placename = soup.select('meta[name="geo.placename"]')
     position = soup.select('meta[name="geo.position"]')
     region = soup.select('meta[name="geo.region"]')
@@ -242,7 +335,6 @@ def extract_geotags(soup):
 
     latitude = None
     longitude = None
-
 
     if position:
         position = position[0]
@@ -284,6 +376,7 @@ def extract_geotags(soup):
 
     return item or None
 
+
 def extract_opengraph_tags(soup):
     og_attrs = {}
     for el in soup.select('meta[property^="og:"]'):
@@ -293,17 +386,34 @@ def extract_opengraph_tags(soup):
 
     return og_attrs or None
 
+
+def extract_opengraph_business_tags(soup):
+    og_attrs = {}
+    for el in soup.select('meta[property^="business:"]'):
+        content = el.get('content', '').strip()
+        if content:
+            og_attrs[el['property']] = content
+
+    for el in soup.select('meta[property^="place:"]'):
+        content = el.get('content', '').strip()
+        if content:
+            og_attrs[el['property']] = content
+
+    return og_attrs or None
+
+
+def gen_og_props(og_tags, proplist, prefix='og'):
+    props = {}
+    for prop in proplist:
+        og_tag_name = '{}:{}'.format(prefix, prop)
+        value = og_tags.get(og_tag_name, '').strip()
+
+        if value:
+            props[og_tag_name] = value
+    return props
+
+
 def opengraph_item(og_tags):
-    def gen_props(proplist):
-        props = {}
-        for prop in proplist:
-            og_tag_name = 'og:{}'.format(prop)
-            value = og_tags.get(og_tag_name, '').strip()
-
-            if value:
-                props[og_tag_name.replace('-', '_')] = value
-        return props
-
     latitude_value = None
     for val in ('og:latitude', 'og:lat'):
         if val in og_tags:
@@ -321,14 +431,15 @@ def opengraph_item(og_tags):
         try:
             latitude = og_tags[latitude_value].strip()
             longitude = og_tags[longitude_value].strip()
+
         except Exception:
             pass
 
-        if latitude and longitude:
+        if latitude and longitude and latlon_valid(latitude, longitude):
             item['og:latitude'] = latitude
             item['og:longitude'] = longitude
 
-    address_props = gen_props(['street-address', 'locality', 'region', 'postal-code', 'country-name', 'phone_number'])
+    address_props = gen_og_props(og_tags, ['street-address', 'locality', 'region', 'postal-code', 'country-name', 'phone_number'])
 
     have_address = len(address_props) > 0
     if have_address:
@@ -336,18 +447,49 @@ def opengraph_item(og_tags):
 
     if have_address or have_latlon:
         item['item_type'] = OG_TAG_TYPE
-        title_props = gen_props(['title', 'description', 'locale', 'site_name', 'type', 'url'])
+        title_props = gen_og_props(og_tags, ['title', 'description', 'locale', 'site_name', 'type', 'url'])
         item.update(title_props)
 
     return item or None
+
+
+def opengraph_business(og_tags):
+    item = {}
+
+    address_props = gen_og_props(og_tags, ['street_address', 'locality', 'region', 'postal_code',
+                                  'country', 'phone_number', 'website'], prefix='business:contact_data')
+
+    have_address = len(address_props) > 0
+    if have_address:
+        item.update(address_props)
+
+    latitude = og_tags.get('place:location:latitude', '').strip()
+    longitude = og_tags.get('place:location:longitude', '').strip()
+
+    have_latlon = latitude and longitude and latlon_valid(latitude, longitude)
+    if have_latlon:
+        item['place:location:latitude'] = latitude
+        item['place:location:longitude'] = longitude
+
+    if have_address or have_latlon:
+        item['item_type'] = OG_BUSINESS_TAG_TYPE
+        title_props = gen_og_props(og_tags, ['title', 'description', 'locale', 'site_name', 'type', 'url'])
+        item.update(title_props)
+
+    return item or None
+
 
 google_maps_lat_lon_path_regex = re.compile('/maps.*?@[\d]+', re.I)
 
 def item_from_google_maps_url(url):
     query_param = 'q'
+
+    ll_param_names = ('ll', 'sll', 'center', 'daddr')
     ll_param = 'll'
     alt_ll_param = 'sll'
+
     near_param = 'hnear'
+    center_param = 'center'
 
     latitude = None
     longitude = None
@@ -357,12 +499,14 @@ def item_from_google_maps_url(url):
     path = split.path
     if query_string:
         params = urlparse.parse_qs(query_string)
-        latlon = params.get(ll_param) or params.get(alt_ll_param)
-        if latlon:
-            try:    
+        for param in ll_param_names:
+            latlon = params.get(param)
+            try:
                 latitude, longitude = latlon_comma_splitter.split(latlon[0])
+                if not latlon_valid(latitude, longitude):
+                    continue
             except Exception:
-                pass
+                continue
 
         query = params.get(query_param)
         if query:
@@ -385,19 +529,15 @@ def item_from_google_maps_url(url):
         if item:
             item['item_type'] = GOOGLE_MAP_EMBED_TYPE
             return item
-    elif path and google_maps_lat_lon_path_regex.search(path):
+    
+    if path and google_maps_lat_lon_path_regex.search(path):
         path_components = path.split('/')
         for p in path_components:
             if p.startswith('@'):
                 values = p.strip('@').split(',')
                 if len(values) >= 2:
-                    latitude, longitude = []
-                    try:
-                        flatitude = float(latitude)
-                        flongitude = float(longitude)
-                    except Exception:
-                        return None
-                    else:
+                    latitude, longitude = values[:2]
+                    if latlon_valid(latitude, longitude):
                         item = {
                             'item_type': GOOGLE_MAP_EMBED_TYPE,
                             'latitude': latitude,
@@ -407,13 +547,18 @@ def item_from_google_maps_url(url):
     return None
 
 
+
+google_maps_href_regex = re.compile('google\.[^/]+\/maps')
+google_maps_embed_regex = re.compile('google\.[^/]+\/maps/embed/.*/place')
+
+
 def extract_google_map_embeds(soup):
     items = []
 
     iframe = soup.select('iframe[src*="maps.google"]')
 
     if not iframe:
-        iframe = soup.select('iframe[src*="google.*/maps/embed/v1/place"]')
+        iframe = soup.find_all('iframe', src=google_maps_embed_regex)
 
     seen = set()
 
@@ -427,6 +572,8 @@ def extract_google_map_embeds(soup):
                 seen.add(u)
 
     a_tag = soup.select('a[href*="maps.google"]')
+    if not a_tag:
+        a_tag = soup.find_all('a', href=google_maps_href_regex)
     if a_tag:
         for a in a_tag:
             u = a.get('href')
@@ -452,3 +599,115 @@ def extract_google_map_embeds(soup):
                 seen.add(u)
     
     return items
+
+
+hopstop_route_regex = re.compile('hopstop\.[^/]+/route')
+hopstop_map_regex = re.compile('hopstop\.[^/]+/map')
+
+def extract_hopstop_direction_embeds(soup):
+    hopstop_embeds = soup.find_all('a', href=hopstop_route_regex)
+    items = []
+    for tag in hopstop_embeds:
+        split = urlparse.urlsplit(tag.attrs['href'])
+        query_string = split.query
+        if query_string:
+            params = urlparse.parse_qs(query_string)
+            if params and 'address2' in params and 'zip2' in params:
+                item = {'item_type': HOPSTOP_ROUTE_TYPE,
+                        'address': params['address2'][0],
+                        'postal_code': params['zip2'][0]
+                        }
+                items.append(item)
+    return items
+
+
+def extract_hopstop_map_embeds(soup):
+    hopstop_embeds = soup.find_all('a', href=hopstop_map_regex)
+    items = []
+    for tag in hopstop_embeds:
+        split = urlparse.urlsplit(tag.attrs['href'])
+        query_string = split.query
+        if query_string:
+            params = urlparse.parse_qs(query_string)
+            if params and 'address' in params:
+                item = {'item_type': HOPSTOP_MAP_TYPE,
+                        'address': params['address'][0]}
+                items.append(item)
+    return items
+
+
+# Some big sites like yellowpages.com use this
+def extract_mappoint_embeds(soup):
+    pushpins = soup.find_all(attrs={'data-pushpin': True})
+    items = []
+    if len(pushpins) == 1:
+        try:
+            item = json.loads(pushpins[0]['data-pushpin'])
+            latitude = item.get('lat', item.get('latitude'))
+            longitude = item.get('lon', item.get('long', item.get('longitude')))
+            if latitude and longitude and latlon_valid(latitude, longitude):
+                return [{'item_type': MAPPOINT_EMBED_TYPE,
+                         'mappoint.latitude': latitude,
+                         'mappoint.longitude': longitude}]
+        except Exception:
+            return []
+
+
+
+def extract_items(soup):
+    items = []
+
+    schema_dot_org_items = extract_schema_dot_org(soup)
+    rdfa_items = extract_schema_dot_org(soup, use_rdfa=True)
+    vcards = extract_vcards(soup)
+    address_elements = extract_address_elements(soup)
+    opengraph_tags = extract_opengraph_tags(soup)
+    opengraph_business_tags = extract_opengraph_business_tags(soup)
+    google_maps_embeds = extract_google_map_embeds(soup)
+    geotags = extract_geotags(soup)
+
+    mappoint_pushpins = extract_mappoint_embeds(soup)
+    hopstop_route_embeds = extract_hopstop_direction_embeds(soup)
+    hopstop_map_embeds = extract_hopstop_map_embeds(soup)
+
+    if geotags:
+        geotags = [geotags]
+
+    basic_metadata = extract_basic_metadata(soup)
+
+    items = list(chain(*(c for c in (schema_dot_org_items,
+                                     rdfa_items,
+                                     vcards,
+                                     address_elements,
+                                     geotags,
+                                     google_maps_embeds,
+                                     mappoint_pushpins,
+                                     hopstop_route_embeds,
+                                     hopstop_map_embeds) if c)))
+    if opengraph_tags:
+        i = opengraph_item(opengraph_tags)
+        if i:
+            items.append(i)
+
+    if opengraph_business_tags:
+        i = opengraph_business(opengraph_business_tags)
+        if i:
+            items.append(i)
+
+    social_handles = extract_social_handles(soup)
+
+    ret = {}
+    if items:
+        ret['items'] = items
+
+        if social_handles:
+            ret['social'] = social_handles
+
+        if opengraph_tags:
+            ret['og'] = opengraph_tags
+
+        if basic_metadata:
+            ret.update(basic_metadata)
+
+        return ret
+
