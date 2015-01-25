@@ -323,7 +323,8 @@ def extract_vcards(soup):
             category = gen_prop('category', vcard.select('.category'))
             if category:
                 properties.append(category)
-       
+        else:
+            continue
 
         if properties:
             item['item_type'] = VCARD_TYPE
