@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 import os
 import unittest
 
+from openvenues.jobs.microdata import contains_microdata_regex
 from openvenues.extract.soup import *
 
 this_dir = os.path.realpath(os.path.dirname(__file__))
@@ -16,6 +17,11 @@ class TestExtraction(unittest.TestCase):
     def _get_test_html(self, filename):
         return open(os.path.join(TEST_DATA_DIR, filename)).read()
 
+
+    def test_filter_regex(self):
+        for filename in os.listdir(TEST_DATA_DIR):
+            html = self._get_test_html(filename)
+            self.assertTrue(contains_microdata_regex.search(html))
 
     def test_rdfa(self):
         html = self._get_test_html('tripadvisor.html')
