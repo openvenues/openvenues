@@ -252,9 +252,10 @@ def extract_vcards(soup):
             prop = {'name': name}
             text = (result.text or u'').strip()
             value, value_attr = tag_value_and_attr(result)
-            if text:
+            if not value_attr:
+                prop['value'] = text
+            else:
                 prop['text'] = text
-            if value:
                 prop['value'] = value
                 prop['value_attr'] = value_attr
 
@@ -314,7 +315,9 @@ def extract_vcards(soup):
             photo = gen_prop('photo', vcard.select('.photo'))
             if photo:
                 properties.append(photo)
-            vcard_url = gen_prop('url', vcard.select('.url'))
+            vcard_url = gen_prop('url', vcard.select('.url a'))
+            if not vcard_url:
+                vcard_url = gen_prop('url', vcard.select('a.url'))
             if vcard_url:
                 properties.append(vcard_url)
             telephone = gen_prop('telephone', vcard.select('.tel'))
