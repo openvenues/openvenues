@@ -245,18 +245,23 @@ def extract_social_handles(soup):
 def extract_vcards(soup):
     items = []
 
-    def gen_prop(name, result):
+    def gen_prop(name, selector):
         prop = None
         if result:
-            result = result[0]
+            result = selector[0]
             prop = {'name': name}
-            value = (result.text or u'').strip()
+            text = (result.text or u'').strip()
+            value, value_attr = tag_value_and_attr(result)
+            if text:
+                prop['text'] = text
             if value:
                 prop['value'] = value
-            attributes = {k: v for k, v in result.attrs.iteritems() if k not in ('class',)}
+                prop['value_attr'] = value_attr
+
+            attributes = {k: v for k, v in result.attrs.iteritems() if k not in ('class', value_attr)}
             if attributes:
                 prop['attributes'] = attributes 
-            if 'value' not in prop and 'attributes' not in prop:
+            if 'text' not in prop and 'value' not in prop and 'attributes' not in prop:
                 prop = None
         return prop
 
@@ -272,6 +277,7 @@ def extract_vcards(soup):
         street = gen_prop('street_address', vcard.select('.street-address'))
         if street:
             properties.append(street)
+            have_address = True
         locality = gen_prop('locality', vcard.select('.locality'))
         if locality:
             properties.append(locality)
@@ -284,8 +290,21 @@ def extract_vcards(soup):
         country = gen_prop('country', vcard.select('.country-name'))
         if country:
             properties.append(country)
-        have_address = len(properties) > 0
-        if have_address:
+
+        have_latlon = False
+
+        latitude = gen_prop('latitude', vcard.select('.latitude'))
+        longitude = gen_prop('longitude', vcard.select('.longitude'))
+        if not latitude and longitude:
+            latitude = gen_prop('latitude', vcard.select('.p-latitude'))
+            longtitude = gen_prop('longitude', vcard.select('.p-longitude'))
+        
+        if latitude and longitude:
+            properties.append(latitude)
+            properties.append(longitude)
+            have_latlon = True
+
+        if have_address or have_latlon:
             org_name = gen_prop('org_name', vcard.select('.org'))
             if org_name:
                 properties.append(org_name)
@@ -305,15 +324,6 @@ def extract_vcards(soup):
             if category:
                 properties.append(category)
        
-        latitude = gen_prop('latitude', vcard.select('.latitude'))
-        longitude = gen_prop('longitude', vcard.select('.longitude'))
-        if not latitude and longitude:
-            latitude = gen_prop('latitude', vcard.select('.p-latitude'))
-            longtitude = gen_prop('longitude', vcard.select('.p-longitude'))
-        
-        if latitude and longitude:
-            properties.append(latitude)
-            properties.append(longitude)
 
         if properties:
             item['item_type'] = VCARD_TYPE
