@@ -104,6 +104,7 @@ def extract_schema_dot_org(soup, use_rdfa=False):
     xmlns = None
 
     if use_rdfa:
+        data_vocabulary = None
         # Verify that we have xmlns defined
         for tag in soup.find_all(True):
             data_vocabulary = [k for k, v in tag.attrs.iteritems()
@@ -115,7 +116,6 @@ def extract_schema_dot_org(soup, use_rdfa=False):
             return items
         else:
             xmlns = data_vocabulary.split(':', 1)[-1]
-
 
     queue = deque([(None, tag) for tag in soup.find_all(True, recursive=False)])
 
