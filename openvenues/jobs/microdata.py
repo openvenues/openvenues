@@ -43,12 +43,17 @@ class MicrodataJob(CommonCrawlJob):
         have_address = False
         have_latlon = False
         for prop in item.get('properties'):
-            if prop.get('name') == 'address':
+            if prop.get('name') == 'address' or prop.get('type') == 'PostalAddress':
                 address_props = prop.get('properties', [])
                 for aprop in address_props:
                     if aprop.get('name') == 'streetAddress':
                         have_address = True
             elif prop.get('name') == 'geo':
+                geo_props = prop.get('properties', [])
+                for gprop in geo_props:
+                    if gprop.get('name') == 'latitude':
+                        have_latlon = True
+            elif prop.get('name') == 'latitude':
                 have_latlon = True
             if have_address and have_latlon:
                 break
