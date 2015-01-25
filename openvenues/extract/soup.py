@@ -155,6 +155,8 @@ def extract_schema_dot_org(soup, use_rdfa=False):
             if use_rdfa:
                 prop_name = prop_name.split(':', 1)[-1]
 
+            prop_name = prop_name.replace('-', '_')
+
             prop = {'name': prop_name}
             value_attr = None
             if not item_scope:
@@ -258,7 +260,11 @@ def extract_vcards(soup):
                 prop = None
         return prop
 
-    for vcard in soup.select('.vcard'):
+    vcards = soup.select('.vcard')
+    if not vcards:
+        vcards = soup.select('.adr')
+
+    for vcard in vcards:
         item = {}
         properties = []
         have_address = False
