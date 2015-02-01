@@ -89,15 +89,6 @@ def extract_basic_metadata(soup):
     return ret
 
 
-# No venues on Null Island
-def latlon_valid(latitude, longitude):
-    try:
-        return float(latitude) != 0.0 and float(longitude) != 0.0
-    except Exception:
-        logger.error('Error verifying lat/lon: {}'.format(traceback.format_exc()))
-        return False
-
-
 street_props = set(['street_address', 'street', 'address', 'street-address', 'streetAddress'])
 latlon_props = set(['latitude', 'longitude'])
 
@@ -497,7 +488,7 @@ def opengraph_item(og_tags):
         except Exception:
             logger.error('Error in opengraph tags extracting lat/lon: {}'.format(traceback.format_exc()))
 
-        if latitude and longitude and latlon_valid(latitude, longitude):
+        if latitude and longitude:
             item['og:latitude'] = latitude
             item['og:longitude'] = longitude
 
@@ -528,7 +519,7 @@ def opengraph_business(og_tags):
     latitude = og_tags.get('place:location:latitude', '').strip()
     longitude = og_tags.get('place:location:longitude', '').strip()
 
-    have_latlon = latitude and longitude and latlon_valid(latitude, longitude)
+    have_latlon = latitude and longitude
     if have_latlon:
         item['place:location:latitude'] = latitude
         item['place:location:longitude'] = longitude
@@ -565,7 +556,7 @@ def item_from_google_maps_url(url):
             latlon = params.get(param)
             try:
                 latitude, longitude = latlon_comma_splitter.split(latlon[0])
-                if not latlon_valid(latitude, longitude):
+                if not latitude and longitude:
                     continue
             except Exception:
                 continue
@@ -599,7 +590,7 @@ def item_from_google_maps_url(url):
                 values = p.strip('@').split(',')
                 if len(values) >= 2:
                     latitude, longitude = values[:2]
-                    if latlon_valid(latitude, longitude):
+                    if latitude and longitude:
                         item = {
                             'item_type': GOOGLE_MAP_EMBED_TYPE,
                             'latitude': latitude,
@@ -707,7 +698,7 @@ def extract_mappoint_embeds(soup):
             item = json.loads(pushpins[0]['data-pushpin'])
             latitude = item.get('lat', item.get('latitude'))
             longitude = item.get('lon', item.get('long', item.get('longitude')))
-            if latitude and longitude and latlon_valid(latitude, longitude):
+            if latitude and longitude:
                 return [{'item_type': MAPPOINT_EMBED_TYPE,
                          'mappoint.latitude': latitude,
                          'mappoint.longitude': longitude}]
