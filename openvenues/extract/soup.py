@@ -152,6 +152,8 @@ def extract_schema_dot_org(soup, use_rdfa=False):
                 item_prop = [p for p in item_prop if p.startswith('{}:'.format(xmlns))]
                 if not item_prop:
                     item_prop = None
+                else:
+                    item_prop = item_prop[0]
 
         if item_prop:
             prop_name = item_prop
@@ -534,6 +536,7 @@ def opengraph_business(og_tags):
 
 google_maps_lat_lon_path_regex = re.compile('/maps.*?@[\d]+', re.I)
 
+
 def item_from_google_maps_url(url):
     query_param = 'q'
 
@@ -600,7 +603,6 @@ def item_from_google_maps_url(url):
     return None
 
 
-
 google_maps_href_regex = re.compile('google\.[^/]+\/maps')
 google_maps_embed_regex = re.compile('google\.[^/]+\/maps/embed/.*/place')
 
@@ -651,6 +653,24 @@ def extract_google_map_embeds(soup):
                 items.append(item)
                 seen.add(u)
     
+    return items
+
+
+def extract_data_lat_lon_attributes(soup):
+    lat = soup.find_all(attrs={'data-lat': True})
+    items = []
+    for tag in lat:
+        latitude = tag['data-lat'].strip()
+
+        longitude = tag.get('data-lng', tag.get('data-lon', tag.get('data-long', None)))
+
+        if latitude and longitude:
+            items.append({'item_type': DATA_LATLON_TYPE,
+                          'latitude': latitude,
+                          'longitude': longitude,
+                          'attrs': tag.attrs
+                          })
+
     return items
 
 
@@ -724,6 +744,8 @@ def extract_items(soup):
     hopstop_route_embeds = extract_hopstop_direction_embeds(soup)
     hopstop_map_embeds = extract_hopstop_map_embeds(soup)
 
+    data_latlon_attrs = extract_data_lat_lon_attributes(soup)
+
     if geotags:
         geotags = [geotags]
 
@@ -737,7 +759,8 @@ def extract_items(soup):
                                      google_maps_embeds,
                                      mappoint_pushpins,
                                      hopstop_route_embeds,
-                                     hopstop_map_embeds) if c)))
+                                     hopstop_map_embeds,
+                                     data_latlon_attrs) if c)))
     if opengraph_tags:
         i = opengraph_item(opengraph_tags)
         if i:

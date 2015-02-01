@@ -10,6 +10,7 @@ GOOGLE_MAP_SHORTENED = 'gmap_short'
 GEOTAG_TYPE = 'geotag'
 OG_TAG_TYPE = 'og'
 OG_BUSINESS_TAG_TYPE = 'og_business'
+DATA_LATLON_TYPE = 'data_latlon'
 
 HOPSTOP_MAP_TYPE = 'hopstop.map'
 HOPSTOP_ROUTE_TYPE = 'hopstop.route'
