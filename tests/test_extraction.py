@@ -23,6 +23,14 @@ class TestExtraction(unittest.TestCase):
             html = self._get_test_html(filename)
             self.assertTrue(contains_microdata_regex.search(html))
 
+
+    def test_invalid_schema_dot_org(self):
+        html = self._get_test_html('time.html')
+        soup = BeautifulSoup(html)
+        ret = extract_items(soup)
+        self.assertEqual(ret, None)
+
+
     def test_rdfa(self):
         html = self._get_test_html('tripadvisor.html')
         soup = BeautifulSoup(html)
