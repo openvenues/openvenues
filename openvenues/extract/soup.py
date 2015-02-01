@@ -1,3 +1,5 @@
+import logging
+import traceback
 import ujson as json
 
 from collections import *
@@ -5,6 +7,8 @@ from itertools import chain
 from bs4 import BeautifulSoup, SoupStrainer
 from openvenues.extract.util import *
 
+
+logger = logging.getLogger('extract.soup')
 
 def tag_value_and_attr(tag):
     value_attr = None
@@ -90,7 +94,12 @@ def latlon_valid(latitude, longitude):
     try:
         return float(latitude) != 0.0 and float(longitude) != 0.0
     except Exception:
+        logger.error('Error verifying lat/lon: {}'.format(traceback.format_exc()))
         return False
+
+
+street_props = set(['street_address', 'street', 'address', 'street-address', 'streetAddress'])
+latlon_props = set(['latitude', 'longitude'])
 
 
 def extract_schema_dot_org(soup, use_rdfa=False):
@@ -118,6 +127,9 @@ def extract_schema_dot_org(soup, use_rdfa=False):
             xmlns = data_vocabulary.split(':', 1)[-1]
 
     queue = deque([(None, tag) for tag in soup.find_all(True, recursive=False)])
+
+    have_street = False
+    have_latlon = False
 
     while queue:
         parent_item, tag = queue.popleft()
@@ -201,7 +213,37 @@ def extract_schema_dot_org(soup, use_rdfa=False):
             current_item = item
             
         queue.extend([(current_item, child) for child in tag.find_all(True, recursive=False)])
-    return items
+
+    ret = []
+
+    for item in items:
+        have_street = False
+        have_latlon = False
+        item_type = item.get('item_type')
+        if item_type == 'schema.org':
+            for prop in item.get('properties', []):
+                name = prop.get('name')
+                if name == 'address':
+                    props = set([p.get('name') for p in prop.get('properties', [])])
+                    if props & street_props:
+                        have_street = True
+                if name == 'geo':
+                    props = set([p.get('name') for p in prop.get('properties', [])])
+                    if len(latlon_props & props) == 2:
+                        have_latlon = True
+                if name in latlon_props:
+                    have_latlon = True
+                if name in street_props:
+                    have_street = True
+        elif item_type == 'rdfa':
+            props = set([p.get('name') for p in item.get('properties', [])])
+
+            have_street = props & street_props
+            have_latlon = len(props & latlon_props) == 2
+        if have_street or have_latlon:
+            ret.append(item)
+
+    return ret
 
 FACEBOOK = 'facebook'
 TWITTER = 'twitter'
@@ -361,14 +403,14 @@ def extract_geotags(soup):
         try:
             latitude, longitude = latlon_splitter.split(position.get('content'))
         except Exception:
-            pass
+            logger.error('Exception extracting geotags geo.position lat/lon: {}'.format(traceback.format_exc()))
 
     if not (latitude and longitude) and icbm:
         icbm = icbm[0]
         try:
             latitude, longitude = latlon_splitter.split(icbm.get('content'))
         except Exception:
-            pass
+            logger.error('Exception extracting icbm lat/lon: {}'.format(traceback.format_exc()))
 
     item = {}
     if latitude and longitude:
@@ -453,7 +495,7 @@ def opengraph_item(og_tags):
             longitude = og_tags[longitude_value].strip()
 
         except Exception:
-            pass
+            logger.error('Error in opengraph tags extracting lat/lon: {}'.format(traceback.format_exc()))
 
         if latitude and longitude and latlon_valid(latitude, longitude):
             item['og:latitude'] = latitude
@@ -670,6 +712,7 @@ def extract_mappoint_embeds(soup):
                          'mappoint.latitude': latitude,
                          'mappoint.longitude': longitude}]
         except Exception:
+            logger.error('Error in extracting mappoint embed: {}'.format(traceback.format_exc()))
             return []
 
 
