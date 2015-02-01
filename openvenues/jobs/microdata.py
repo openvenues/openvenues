@@ -17,6 +17,10 @@ patterns = [
     'business:contact_data:street_address',
     'business:contact_data:postal_code',
     'place:location:latitude',
+    'data-lat',
+    'data-lon',
+    'data-lng',
+    'data-long',
 ]
 
 contains_microdata_regex = re.compile('|'.join(patterns), re.I | re.UNICODE)
