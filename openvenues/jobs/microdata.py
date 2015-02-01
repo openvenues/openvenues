@@ -73,13 +73,7 @@ class MicrodataJob(CommonCrawlJob):
             elif item_type == SCHEMA_DOT_ORG_TYPE:
                 self.report_schema_dot_org_item(item)
             else:
-                props = [k for k in item.keys() if k not in ('attributes',
-                                                             'item_type',
-                                                             'value_attr',
-                                                             'text')]
-                for prop in props:
-                    self.increment_counter('commoncrawl', u':'.join([item_type,
-                                                                     prop]), 1)
+                self.increment_counter('common_crawl', item_type, 1)
 
     def report_social(self, social):
         for k, vals in social.iteritems():
