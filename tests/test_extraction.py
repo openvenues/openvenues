@@ -8,28 +8,27 @@ import unittest
 
 from openvenues.jobs.microdata import contains_microdata_regex
 from openvenues.extract.soup import *
+from openvenues.extract.util import *
 
 this_dir = os.path.realpath(os.path.dirname(__file__))
 
 TEST_DATA_DIR = os.path.join(this_dir, 'data')
 
+
 class TestExtraction(unittest.TestCase):
     def _get_test_html(self, filename):
         return open(os.path.join(TEST_DATA_DIR, filename)).read()
-
 
     def test_filter_regex(self):
         for filename in os.listdir(TEST_DATA_DIR):
             html = self._get_test_html(filename)
             self.assertTrue(contains_microdata_regex.search(html))
 
-
     def test_invalid_schema_dot_org(self):
         html = self._get_test_html('time.html')
         soup = BeautifulSoup(html)
         ret = extract_items(soup)
         self.assertEqual(ret, None)
-
 
     def test_rdfa(self):
         html = self._get_test_html('tripadvisor.html')
@@ -39,12 +38,14 @@ class TestExtraction(unittest.TestCase):
         have_rdfa = False
         have_address = False
 
+        have_latlon = False
+
         have_street = False
         have_locality = False
         have_region = False
 
         for item in ret.get('items', []):
-            if item.get('item_type') == 'rdfa':
+            if item.get('item_type') == RDFA_TYPE:
                 have_rdfa = True
 
                 for prop in item.get('properties', []):
@@ -63,12 +64,17 @@ class TestExtraction(unittest.TestCase):
                         have_region = True
                         self.assertEqual(value, 'NY')
 
-            if item.get('item_type') == 'address':
+            if item.get('item_type') == ADDRESS_ELEMENT_TYPE:
                 have_address = True
                 value = item.get('address')
                 self.assertEqual(value, '781 Franklin Ave., Crown Heights, Brooklyn, NY')
 
+            if item.get('item_type') == DATA_LATLON_TYPE:
+                if item.get('latitude', '').strip() and item.get('longitude', '').strip():
+                    have_latlon = True
+
         self.assertTrue(have_rdfa)
+        self.assertTrue(have_latlon)
         self.assertTrue(have_street)
         self.assertTrue(have_locality)
         self.assertTrue(have_region)
@@ -92,7 +98,7 @@ class TestExtraction(unittest.TestCase):
         have_url = False
 
         for item in ret.get('items', []):
-            if item.get('item_type') == 'vcard':
+            if item.get('item_type') == VCARD_TYPE:
                 have_vcard = True
 
                 for prop in item.get('properties', []):
@@ -157,7 +163,7 @@ class TestExtraction(unittest.TestCase):
         have_category = False
 
         for item in ret.get('items', []):
-            if item.get('item_type') == 'vcard':
+            if item.get('item_type') == VCARD_TYPE:
                 have_vcard = True
 
                 for prop in item.get('properties', []):
