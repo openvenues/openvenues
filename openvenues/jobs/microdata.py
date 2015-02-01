@@ -105,6 +105,7 @@ class MicrodataJob(CommonCrawlJob):
             self.report_social(social_handles)
 
         yield url, ret
+        self.increment_counter('commoncrawl', 'filtered records', 1)
 
 
 if __name__ == '__main__':
