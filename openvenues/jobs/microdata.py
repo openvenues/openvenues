@@ -17,6 +17,8 @@ patterns = [
     'business:contact_data:street_address',
     'business:contact_data:postal_code',
     'place:location:latitude',
+    'geo\.position',
+    'icbm',
     'data-lat',
     'data-lon',
     'data-lng',

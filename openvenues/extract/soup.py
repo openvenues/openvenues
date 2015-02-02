@@ -388,28 +388,19 @@ def extract_geotags(soup):
     icbm = soup.select('meta[name="ICBM"]')
     title = soup.select('meta[name="DC.title"]')
 
-    latitude = None
-    longitude = None
+    item = {}
 
     if position:
         position = position[0]
-        try:
-            latitude, longitude = latlon_splitter.split(position.get('content'))
-        except Exception:
-            logger.error('Exception extracting geotags geo.position lat/lon: {}'.format(traceback.format_exc()))
+        value, value_attr = tag_value_and_attr(position)
+        if value and value.strip():
+            item['geotags.position'] = value.strip()
 
-    if not (latitude and longitude) and icbm:
+    if not position and icbm:
         icbm = icbm[0]
-        try:
-            latitude, longitude = latlon_splitter.split(icbm.get('content'))
-        except Exception:
-            logger.error('Exception extracting icbm lat/lon: {}'.format(traceback.format_exc()))
-
-    item = {}
-    if latitude and longitude:
-        item['item_type'] = GEOTAG_TYPE
-        item['latitude'] = latitude
-        item['longitude'] = longitude
+        value, value_attr = tag_value_and_attr(icbm)
+        if value and value.strip():
+            item['geotags.icbm'] = value.strip()
 
     if placename:
         placename = placename[0]
@@ -428,6 +419,10 @@ def extract_geotags(soup):
         value, value_attr = tag_value_and_attr(title)
         if value:
             item['geotags.title'] = value.strip()
+
+    if item:
+        item['item_type'] = GEOTAG_TYPE
+
 
     return item or None
 

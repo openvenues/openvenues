@@ -32,7 +32,7 @@ property_values = {
     'time': 'datetime',
 }
 
-br_regex = re.compile('<br[\s]*/?>', re.I)
+br_regex = re.compile('<br[\s]*/?[\s]*>', re.I)
 
 
 def br2nl(text):
