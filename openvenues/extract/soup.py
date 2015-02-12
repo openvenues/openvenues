@@ -216,14 +216,15 @@ def extract_schema_dot_org(soup, use_rdfa=False):
             for prop in item.get('properties', []):
                 name = prop.get('name', '').lower()
                 if name == 'address':
-                    props = set([p.get('name') for p in prop.get('properties', [])])
+                    props = set([p.get('name', '').lower() for p in prop.get('properties', [])])
                     if props & street_props:
                         have_street = True
-                elif name.lower() == 'streetaddress':
-                    have_street = True
+                    if len(latlon_props & props) >= 2:
+                        have_latlon = True
+
                 if name == 'geo':
                     props = set([p.get('name') for p in prop.get('properties', [])])
-                    if len(latlon_props & props) == 2:
+                    if len(latlon_props & props) >= 2:
                         have_latlon = True
                 if name in latlon_props:
                     have_latlon = True
