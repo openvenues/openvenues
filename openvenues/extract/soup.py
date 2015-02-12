@@ -579,7 +579,7 @@ def item_from_google_maps_url(url):
             query = query[0]
 
         for param in near_param_names:
-            near = params.get(near_param)
+            near = params.get(param)
             if near:
                 near = near[0]
                 break
