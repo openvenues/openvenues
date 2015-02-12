@@ -1,5 +1,6 @@
 from common_crawl.base import *
 from openvenues.extract.soup import *
+from openvenues.extract.util import *
 
 logger = logging.getLogger('microdata_job')
 
@@ -49,17 +50,17 @@ class MicrodataJob(CommonCrawlJob):
         have_address = False
         have_latlon = False
         for prop in item.get('properties'):
-            if prop.get('name') == 'address' or prop.get('type') == 'PostalAddress':
+            if prop.get('name') == 'address' or prop.get('type', '').lower() == 'postaladdress':
                 address_props = prop.get('properties', [])
                 for aprop in address_props:
-                    if aprop.get('name') == 'streetAddress':
+                    if aprop.get('name', '').lower() == 'streetaddress':
                         have_address = True
-            elif prop.get('name') == 'geo':
+            elif prop.get('name', '').lower() == 'geo':
                 geo_props = prop.get('properties', [])
                 for gprop in geo_props:
-                    if gprop.get('name') == 'latitude':
+                    if gprop.get('name', '').lower() == 'latitude':
                         have_latlon = True
-            elif prop.get('name') == 'latitude':
+            elif prop.get('name', '').lower() == 'latitude':
                 have_latlon = True
             if have_address and have_latlon:
                 break
@@ -87,6 +88,7 @@ class MicrodataJob(CommonCrawlJob):
                                    len(vals))
 
     def parse_content(self, content):
+        content = br2nl(content)
         return BeautifulSoup(content, 'html.parser')
 
     def filter(self, url, headers, content):
@@ -100,7 +102,7 @@ class MicrodataJob(CommonCrawlJob):
         if items:
             self.report_items(items)
 
-        social_handles = ret.get('social_handles')
+        social_handles = ret.get('social')
         if social_handles:
             self.report_social(social_handles)
 
@@ -110,8 +112,3 @@ class MicrodataJob(CommonCrawlJob):
 
 if __name__ == '__main__':
     MicrodataJob.run()
-
-
-
-
-

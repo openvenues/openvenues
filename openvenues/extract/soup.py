@@ -10,6 +10,7 @@ from openvenues.extract.util import *
 
 logger = logging.getLogger('extract.soup')
 
+
 def tag_value_and_attr(tag):
     value_attr = None
     value_attr = property_values.get(tag.name.lower())
@@ -63,7 +64,7 @@ def extract_basic_metadata(soup):
     if alternates:
         ret['alternates'] = [{'link': tag['href'],
                               'lang': tag.get('hreflang')
-                             } for tag in alternates if tag.get('href')]
+                              } for tag in alternates if tag.get('href')]
 
     rel_tag = soup.select('[rel="tag"]')
     if rel_tag:
@@ -85,12 +86,12 @@ def extract_basic_metadata(soup):
             all_tags.append(tag)
 
         ret['tags'] = all_tags
-   
+
     return ret
 
 
-street_props = set(['street_address', 'street', 'address', 'street-address', 'streetAddress'])
-latlon_props = set(['latitude', 'longitude'])
+street_props = set(['street_address', 'street', 'address', 'street-address', 'streetaddress'])
+latlon_props = set(['latitude', 'longitude', 'lat', 'lon', 'long'])
 
 
 def extract_schema_dot_org(soup, use_rdfa=False):
@@ -108,7 +109,7 @@ def extract_schema_dot_org(soup, use_rdfa=False):
         # Verify that we have xmlns defined
         for tag in soup.find_all(True):
             data_vocabulary = [k for k, v in tag.attrs.iteritems()
-                           if k.startswith('xmlns:') and 'data-vocabulary' in v]
+                               if k.startswith('xmlns:') and 'data-vocabulary' in v]
             if data_vocabulary:
                 data_vocabulary = data_vocabulary[0]
                 break
@@ -134,13 +135,11 @@ def extract_schema_dot_org(soup, use_rdfa=False):
 
         has_vocab = False
         item_scope = tag.get(scope_attr)
-        
+
         if not item_scope and use_rdfa:
-            has_vocab = bool(tag.get('vocab'))
             item_scope = tag.get('typeof', tag.get('vocab'))
             if not item_scope or not item_scope.startswith('{}:'.format(xmlns)):
                 item_scope = None
-
 
         item_prop = tag.get(prop_attr)
         item_type = item_scope
@@ -185,7 +184,7 @@ def extract_schema_dot_org(soup, use_rdfa=False):
             if prop is not None:
                 item = prop
             else:
-                item = {} 
+                item = {}
             is_place_item = False
             if item_type:
                 if not use_rdfa:
@@ -197,14 +196,14 @@ def extract_schema_dot_org(soup, use_rdfa=False):
             item.update({
                 'item_type': schema_type,
                 'type': item_type,
-                })
+            })
             item['properties'] = []
 
             if is_place_item:
                 items.append(item)
-                
+
             current_item = item
-            
+
         queue.extend([(current_item, child) for child in tag.find_all(True, recursive=False)])
 
     ret = []
@@ -215,11 +214,13 @@ def extract_schema_dot_org(soup, use_rdfa=False):
         item_type = item.get('item_type')
         if item_type == 'schema.org':
             for prop in item.get('properties', []):
-                name = prop.get('name')
+                name = prop.get('name', '').lower()
                 if name == 'address':
                     props = set([p.get('name') for p in prop.get('properties', [])])
                     if props & street_props:
                         have_street = True
+                elif name.lower() == 'streetaddress':
+                    have_street = True
                 if name == 'geo':
                     props = set([p.get('name') for p in prop.get('properties', [])])
                     if len(latlon_props & props) == 2:
@@ -229,10 +230,10 @@ def extract_schema_dot_org(soup, use_rdfa=False):
                 if name in street_props:
                     have_street = True
         elif item_type == 'rdfa':
-            props = set([p.get('name') for p in item.get('properties', [])])
+            props = set([p.get('name', '').lower() for p in item.get('properties', [])])
 
             have_street = props & street_props
-            have_latlon = len(props & latlon_props) == 2
+            have_latlon = len(props & latlon_props) >= 2
         if have_street or have_latlon:
             ret.append(item)
 
@@ -277,6 +278,8 @@ def extract_social_handles(soup):
     return dict(ids)
 
 
+value_attr_regex = re.compile("value-.*")
+
 def extract_vcards(soup):
     items = []
 
@@ -285,8 +288,20 @@ def extract_vcards(soup):
         if selector:
             result = selector[0]
             prop = {'name': name}
+            val_select = result.select('.value')
+            if val_select:
+                value, value_attr = tag_value_and_attr(val_select[0])
+            else:
+                val_select = result.find_all(class_=value_attr_regex)
+                if not val_select:
+                    value, value_attr = tag_value_and_attr(result)
+                else:
+                    value_attr = val_select[0].attrs['class'][0].split('-', 1)[-1]
+                    value = val_select[0].attrs.get(value_attr)
+                    if not value:
+                        value, value_attr = tag_value_and_attr(result)
+
             text = (result.text or u'').strip()
-            value, value_attr = tag_value_and_attr(result)
             if not value_attr:
                 prop['value'] = text
             else:
@@ -376,7 +391,7 @@ def extract_address_elements(soup):
 
     for addr in soup.select('address'):
         html = unicode(addr)
-        items.append({'item_type': ADDRESS_ELEMENT_TYPE, 'address': BeautifulSoup(br2nl(html)).text.strip(),
+        items.append({'item_type': ADDRESS_ELEMENT_TYPE, 'address': BeautifulSoup(html).text.strip(),
             'original_html': html})
     return items
 
@@ -535,12 +550,12 @@ google_maps_lat_lon_path_regex = re.compile('/maps.*?@[\d]+', re.I)
 def item_from_google_maps_url(url):
     query_param = 'q'
 
-    ll_param_names = ('ll', 'sll', 'center', 'daddr')
+    ll_param_names = ('ll', 'sll', 'center')
     ll_param = 'll'
     alt_ll_param = 'sll'
 
-    near_param = 'hnear'
-    center_param = 'center'
+    near_param_names = ('hnear', 'near')
+    daddr_param = 'daddr'
 
     latitude = None
     longitude = None
@@ -563,9 +578,15 @@ def item_from_google_maps_url(url):
         if query:
             query = query[0]
 
-        near = params.get(near_param)
-        if near:
-            near = near[0]
+        for param in near_param_names:
+            near = params.get(near_param)
+            if near:
+                near = near[0]
+                break
+
+        daddr = params.get(daddr_param)
+        if daddr:
+            daddr = daddr[0]
 
         item = {}
 
@@ -577,7 +598,10 @@ def item_from_google_maps_url(url):
             item['googlemaps.query'] = query
         if near:
             item['googlemaps.near'] = near
+        if daddr:
+            item['googlemaps.daddr'] = daddr
         if item:
+            item['googlemaps.url'] = url
             item['item_type'] = GOOGLE_MAP_EMBED_TYPE
             return item
     
@@ -633,6 +657,16 @@ def extract_google_map_embeds(soup):
                     items.append(item)
                 seen.add(u)
 
+    static_maps = soup.select('img[src*="maps.google"]')
+    if static_maps:
+        for img in static_maps:
+            u = img.get('src')
+            if u not in seen:
+                item = item_from_google_maps_url(u)
+                if item:
+                    items.append(item)
+                seen.add(u)
+
     shortener_a_tag = soup.select('a[href*="goo.gl/maps"]')
     if shortener_a_tag:
         for a in a_tag:
@@ -647,7 +681,7 @@ def extract_google_map_embeds(soup):
                     item['anchor'] = text
                 items.append(item)
                 seen.add(u)
-    
+
     return items
 
 
