@@ -468,7 +468,7 @@ def extract_opengraph_business_tags(soup):
     for el in soup.select('meta[property]'):
         name = el['property'].strip().lower()
         value = el.get('content', '').strip()
-        if (name.startswith('business:') or name.startswith('place:')) and content and name not in og_attrs:
+        if (name.startswith('business:') or name.startswith('place:')) and value and name not in og_attrs:
             og_attrs[name] = value
 
     return og_attrs or None
@@ -761,6 +761,7 @@ def extract_mappoint_embeds(soup):
         except Exception:
             logger.error('Error in extracting mappoint embed: {}'.format(traceback.format_exc()))
             return []
+
 
 
 def extract_items(soup):
