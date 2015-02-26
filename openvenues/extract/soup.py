@@ -42,8 +42,10 @@ def extract_basic_metadata(soup):
             title = value.strip()
             break
 
+    ret = {}
+
     if title:
-        ret = {'title': title}
+        ret['title'] = title
 
     description_tags = soup.select('meta[property="og:description"]') or soup.select('meta[name="description"]')
     if description_tags:
@@ -761,7 +763,6 @@ def extract_mappoint_embeds(soup):
         except Exception:
             logger.error('Error in extracting mappoint embed: {}'.format(traceback.format_exc()))
             return []
-
 
 
 def extract_items(soup):
