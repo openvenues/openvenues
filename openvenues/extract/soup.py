@@ -42,10 +42,8 @@ def extract_basic_metadata(soup):
             title = value.strip()
             break
 
-    if not title:
-        return None
-
-    ret = {'title': title}
+    if title:
+        ret = {'title': title}
 
     description_tags = soup.select('meta[property="og:description"]') or soup.select('meta[name="description"]')
     if description_tags:
@@ -65,6 +63,17 @@ def extract_basic_metadata(soup):
         ret['alternates'] = [{'link': tag['href'],
                               'lang': tag.get('hreflang')
                               } for tag in alternates if tag.get('href')]
+
+    meta_tags = set(soup.select('meta[property]')) | set(soup.select('meta[name]'))
+    meta_dict = defaultdict(list)
+    for t in meta_tags:
+        name = t.get('property', t.get('name', '')).strip().lower()
+        value, value_attr = tag_value_and_attr(t)
+        if value and value.strip() and not name.startswith('og:') and not name.startswith('place:') and not name.startswith('business:'):
+            meta_dict[name].append(value)
+
+    if meta_dict:
+        ret['other_meta'] = dict(meta_dict)
 
     rel_tag = soup.select('[rel="tag"]')
     if rel_tag:
@@ -350,7 +359,7 @@ def extract_vcards(soup):
         if not latitude and longitude:
             latitude = gen_prop('latitude', vcard.select('.p-latitude'))
             longtitude = gen_prop('longitude', vcard.select('.p-longitude'))
-        
+
         if latitude and longitude:
             properties.append(latitude)
             properties.append(longitude)
@@ -445,25 +454,22 @@ def extract_geotags(soup):
 
 def extract_opengraph_tags(soup):
     og_attrs = {}
-    for el in soup.select('meta[property^="og:"]'):
-        content = el.get('content', '').strip()
-        if content:
-            og_attrs[el['property']] = content
+    for el in soup.select('meta[property]'):
+        name = el['property'].strip().lower()
+        value = el.get('content', '').strip()
+        if name.startswith('og:') and value and name not in og_attrs:
+            og_attrs[name] = value
 
     return og_attrs or None
 
 
 def extract_opengraph_business_tags(soup):
     og_attrs = {}
-    for el in soup.select('meta[property^="business:"]'):
-        content = el.get('content', '').strip()
-        if content:
-            og_attrs[el['property']] = content
-
-    for el in soup.select('meta[property^="place:"]'):
-        content = el.get('content', '').strip()
-        if content:
-            og_attrs[el['property']] = content
+    for el in soup.select('meta[property]'):
+        name = el['property'].strip().lower()
+        value = el.get('content', '').strip()
+        if (name.startswith('business:') or name.startswith('place:')) and content and name not in og_attrs:
+            og_attrs[name] = value
 
     return og_attrs or None
 
@@ -565,7 +571,7 @@ def item_from_google_maps_url(url):
     query_string = split.query
     path = split.path
     if query_string:
-        params = urlparse.parse_qs(query_string)
+        params = {k.lower(): v for k, v in urlparse.parse_qs(query_string)}
         for param in ll_param_names:
             latlon = params.get(param)
             try:
@@ -605,7 +611,7 @@ def item_from_google_maps_url(url):
             item['googlemaps.url'] = url
             item['item_type'] = GOOGLE_MAP_EMBED_TYPE
             return item
-    
+
     if path and google_maps_lat_lon_path_regex.search(path):
         path_components = path.split('/')
         for p in path_components:
@@ -623,8 +629,8 @@ def item_from_google_maps_url(url):
     return None
 
 
-google_maps_href_regex = re.compile('google\.[^/]+\/maps')
-google_maps_embed_regex = re.compile('google\.[^/]+\/maps/embed/.*/place')
+google_maps_href_regex = re.compile('google\.[^/]+\/maps', re.I)
+google_maps_embed_regex = re.compile('google\.[^/]+\/maps/embed/.*/place', re.I)
 
 
 def extract_google_map_embeds(soup):
@@ -757,7 +763,6 @@ def extract_mappoint_embeds(soup):
             return []
 
 
-
 def extract_items(soup):
     items = []
 
@@ -817,4 +822,3 @@ def extract_items(soup):
             ret.update(basic_metadata)
 
         return ret
-
