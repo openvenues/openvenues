@@ -571,7 +571,7 @@ def item_from_google_maps_url(url):
     query_string = split.query
     path = split.path
     if query_string:
-        params = {k.lower(): v for k, v in urlparse.parse_qs(query_string)}
+        params = {k.lower(): v for k, v in urlparse.parse_qs(query_string).iteritems()}
         for param in ll_param_names:
             latlon = params.get(param)
             try:
