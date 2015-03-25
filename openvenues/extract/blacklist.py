@@ -18,6 +18,10 @@ NON_PLACE_DOMAINS = re.compile('|'.join([
     'mynewplace.com',
     'houseplans.com',
 
+    # Many geocoded articles are not places
+    # More precise extraction is best
+    'wikipedia.org',
+
     # Geocoded news
     'topix.com',
     'topix.net',
