@@ -254,12 +254,13 @@ def vcard_props(item):
             have_address = True
         elif name == 'org_name' or (name == 'name' and 'org_name' not in prop_names):
             have_name = True
+            name = 'name'
             if prop.get('value_attr') == 'href':
-                value = prop.get('text')
+                value = prop.get('text', '').strip()
                 if not value:
                     have_name = False
                     continue
-        elif name == 'name' and 'org_name' in item:
+        elif name == 'name' and 'org_name' in prop_names:
             continue
         elif name in latitude_props:
             name = 'latitude'
@@ -267,6 +268,7 @@ def vcard_props(item):
         elif name in longitude_props:
             name = 'longitude'
             have_latlon = True
+
         if name and value:
             props[name] = value
 
