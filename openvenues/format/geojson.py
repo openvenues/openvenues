@@ -1,4 +1,6 @@
 import re
+
+from openvenues.utils.encoding import *
 from openvenues.extract.blacklist import *
 from openvenues.extract.util import *
 
@@ -156,7 +158,7 @@ def normalize_schema_dot_org_value(prop):
     return value
 
 
-def schema_dot_org_to_geojson(item, item_type):
+def schema_dot_org_props(item, item_type):
     have_address = False
     have_latlon = False
     have_name = False
@@ -196,7 +198,11 @@ def schema_dot_org_to_geojson(item, item_type):
             for rprop in prop.get('properties', []):
                 name = rprop.get('name', '').strip().lower()
                 name = field_map.get(name, name)
-                value = normalize_schema_dot_org_value(rprop)
+                if name == 'rating_value' and rprop.get('value_attr') == 'src':
+                    attrs = rprop.get('attributes', {})
+                    value = attrs.get('content', attrs.get('alt', attrs.get('value', ''))).strip()
+                else:
+                    value = normalize_schema_dot_org_value(rprop)
                 if name and value:
                     props[name] = value
         elif name == 'name':
@@ -225,14 +231,17 @@ def schema_dot_org_to_geojson(item, item_type):
         if item['type'].lower() in UNINTERESTING_PLACE_TYPES:
             return None
         props['type'] = item['type']
-    if props and have_name and (have_latlon or have_address):
+    if have_latlon:
+        have_latlon = validate_latlon(props)
+
+    if props and have_name and have_latlon and have_address:
         props['item_type'] = item_type
         return props
 
     return None
 
 
-def vcard_to_geojson(item):
+def vcard_props(item):
     have_address = False
     have_latlon = False
     have_name = False
@@ -264,12 +273,12 @@ def vcard_to_geojson(item):
     if have_latlon:
         have_latlon = validate_latlon(props)
 
-    if props and have_name and (have_latlon or have_address):
+    if props and have_name and have_latlon and have_address:
         props['item_type'] = VCARD_TYPE
         return props
 
 
-def og_to_geojson(item, item_type):
+def og_props(item, item_type):
     have_address = False
     have_latlon = False
     have_name = False
@@ -300,3 +309,13 @@ def og_to_geojson(item, item_type):
     if props and have_name and have_latlon and (have_address or item_type == OG_BUSINESS_TAG_TYPE):
         props['item_type'] = item_type
         return props
+
+
+def venue_to_geojson(props):
+    latitude = props.pop('latitude', None)
+    longitude = props.pop('longitude', None)
+    if not latitude and longitude:
+        return None
+    return {'geometry': {'type': 'Point', 'coordinates': [longitude, latitude]},
+            'type': 'Feature',
+            'properties': props}
