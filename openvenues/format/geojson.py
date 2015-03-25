@@ -90,7 +90,6 @@ longitude_decimal_with_direction_regex = re.compile('^(-?1[0-8][0-9]|0?[0-9][0-9
 def latlon_to_floats(latitude, longitude):
     have_lat = False
     have_lon = False
-    print 'input', latitude, longitude
 
     latitude = safe_decode(latitude).strip(u' ,;|')
     longitude = safe_decode(longitude).strip(u' ,;|')
@@ -102,13 +101,11 @@ def latlon_to_floats(latitude, longitude):
     lat_dir = latitude_decimal_with_direction_regex.match(latitude)
 
     if lat_dms:
-        print 'dms', latitude
         d, m, s, c = lat_dms.groups()
         sign = direction_sign(c)
         latitude = degrees_to_decimal(d or 0, m or 0, s or 0)
         have_lat = True
     elif lat_dir:
-        print 'dec dir'
         d, c = lat_dir.groups()
         sign = direction_sign(c)
         latitude = float(d) * sign
@@ -134,7 +131,6 @@ def latlon_to_floats(latitude, longitude):
         longitude = re.sub(beginning_re, u'', longitude)
         longitude = re.sub(end_re, u'', longitude)
 
-    print 'output', latitude, longitude
     return float(latitude), float(longitude)
 
 
@@ -146,7 +142,6 @@ def validate_latlon(props):
         props['longitude'] = longitude
         return True
     except Exception as e:
-        print 'got exception', e
         _ = props.pop('latitude', None)
         _ = props.pop('longitude', None)
         return False
