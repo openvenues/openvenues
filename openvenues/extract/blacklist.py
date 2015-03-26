@@ -17,6 +17,7 @@ NON_PLACE_DOMAINS = re.compile('|'.join([
     'ziprealty.com',
     'mynewplace.com',
     'houseplans.com',
+    'apartmenthomeliving',
 
     # Many geocoded articles are not places
     # More precise extraction is best
