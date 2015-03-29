@@ -101,12 +101,6 @@ def extract_basic_metadata(soup):
     return ret
 
 
-street_props = set(['street_address', 'street', 'address', 'street-address', 'streetaddress'])
-latitude_props = set(['latitude', 'lat'])
-longitude_props = set(['longitude', 'lon', 'lng', 'long'])
-latlon_props = latitude_props | longitude_props
-
-
 def extract_schema_dot_org(soup, use_rdfa=False):
     items = []
 

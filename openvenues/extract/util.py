@@ -42,6 +42,11 @@ def br2nl(text):
 latlon_splitter = re.compile('[\s]*;[\s]*')
 latlon_comma_splitter = re.compile('[\s]*,[\s]*')
 
+street_props = set(['street_address', 'street', 'address', 'street-address', 'streetaddress'])
+latitude_props = set(['latitude', 'lat'])
+longitude_props = set(['longitude', 'lon', 'lng', 'long'])
+latlon_props = latitude_props | longitude_props
+
 UNINTERESTING_PLACE_TYPES = set(s.lower() for s in [
     'Airport',
     'Airline',
