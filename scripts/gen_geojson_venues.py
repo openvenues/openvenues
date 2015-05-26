@@ -125,7 +125,7 @@ def main(input_dir, output_dir):
             lat = midpoint(float(bbox['top']), float(bbox['bottom']))
             lon = midpoint(float(bbox['left']), float(bbox['right']))
 
-            manifest_files.append({'latitude': lat, 'longitude': lon, 'file': '{}.geojson'.format(city), 'name': city.replace('_', ', ').replace('-', ' ')})
+            manifest_files.append({'latitude': lat, 'longitude': lon, 'file': '{}.geojson'.format(city), 'name': city.replace('_', ', ').replace('-', ' ').title()})
 
     manifest = {'files': manifest_files}
 
