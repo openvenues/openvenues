@@ -316,10 +316,11 @@ def og_props(item, item_type):
 
 
 def venue_to_geojson(props):
-    latitude = props.pop('latitude', None)
-    longitude = props.pop('longitude', None)
+
+    latitude = props.get('latitude', None)
+    longitude = props.get('longitude', None)
     if not latitude and longitude:
         return None
     return {'geometry': {'type': 'Point', 'coordinates': [longitude, latitude]},
             'type': 'Feature',
-            'properties': props}
+            'properties': {k: v for k, v in props.iteritems() if k not in ('latitude', 'longitude')}}
