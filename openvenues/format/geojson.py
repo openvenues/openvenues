@@ -160,7 +160,7 @@ def normalize_schema_dot_org_value(prop):
     return value
 
 
-def schema_dot_org_props(item, item_type):
+def schema_dot_org_props(item, item_type, require_latlon=True):
     have_address = False
     have_latlon = False
     have_name = False
@@ -236,14 +236,12 @@ def schema_dot_org_props(item, item_type):
     if have_latlon:
         have_latlon = validate_latlon(props)
 
-    if props and have_name and have_latlon and have_address:
+    if props and have_name and (have_latlon or not require_latlon) and have_address:
         props['item_type'] = item_type
         return props
 
-    return None
 
-
-def vcard_props(item):
+def vcard_props(item, require_latlon=True):
     have_address = False
     have_latlon = False
     have_name = False
@@ -277,12 +275,12 @@ def vcard_props(item):
     if have_latlon:
         have_latlon = validate_latlon(props)
 
-    if props and have_name and have_latlon and have_address:
+    if props and have_name and (have_latlon or not require_latlon) and have_address:
         props['item_type'] = VCARD_TYPE
         return props
 
 
-def og_props(item, item_type):
+def og_props(item, item_type, require_latlon=True):
     have_address = False
     have_latlon = False
     have_name = False
@@ -310,7 +308,7 @@ def og_props(item, item_type):
     if have_latlon:
         have_latlon = validate_latlon(props)
 
-    if props and have_name and have_latlon and (have_address or item_type == OG_BUSINESS_TAG_TYPE):
+    if props and have_name and (have_latlon or not require_latlon) and (have_address or item_type == OG_BUSINESS_TAG_TYPE):
         props['item_type'] = item_type
         return props
 
