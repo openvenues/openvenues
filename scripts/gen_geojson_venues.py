@@ -59,16 +59,12 @@ def midpoint(x1, x2):
     return float(x1 + x2) / 2
 
 
-def main(input_dir, output_dir):
+def main(input_dir, output_dir, require_latlon=True):
     formatter = logging.Formatter('%(asctime)s %(levelname)s [%(name)s]: %(message)s')
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--no-lat-lon', type=bool, action='store_true', default=False)
-    args = parser.parse_args()
 
     require_latlon = not args.no_lat_lon
 
@@ -92,7 +88,7 @@ def main(input_dir, output_dir):
 
     if require_latlon:
         files = {name: open(os.path.join(output_dir, 'cities', '{}.geojson'.format(name)), 'w') for name in city_names}
-    
+
     planet_name = 'planet.geojson' if require_latlon else 'planet_addresses_only.json'
 
     planet = open(os.path.join(output_dir, planet_name), 'w')
@@ -157,7 +153,10 @@ def main(input_dir, output_dir):
     logger.info('Done!')
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print 'Usage: python gen_geojson_venues.py input_dir output_dir'
-        sys.exit(1)
-    main(*sys.argv[1:])
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input_dir')
+    parser.add_argument('output_dir')
+    parser.add_argument('--no-lat-lon', dest='require_latlon', type=bool, action='store_false', default=True)
+    args = parser.parse_args()
+
+    main(args.input_dir, args.output_dir, require_latlon=args.require_latlon)
