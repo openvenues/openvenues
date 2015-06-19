@@ -66,8 +66,6 @@ def main(input_dir, output_dir, require_latlon=True):
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
-    require_latlon = not args.no_lat_lon
-
     city_names = []
     rtree = RTreeIndex()
 
