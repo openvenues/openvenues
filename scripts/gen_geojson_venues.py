@@ -156,7 +156,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('input_dir')
     parser.add_argument('output_dir')
-    parser.add_argument('--no-lat-lon', dest='require_latlon', type=bool, action='store_false', default=True)
+    parser.add_argument('--no-lat-lon', dest='require_latlon', action='store_false', default=True)
     args = parser.parse_args()
 
     main(args.input_dir, args.output_dir, require_latlon=args.require_latlon)
