@@ -7,6 +7,8 @@ import tempfile
 import urlparse
 import ujson as json
 
+import uuid
+
 from rtree.index import Index as RTreeIndex
 from openvenues.extract.blacklist import *
 from openvenues.format.geojson import *
@@ -14,6 +16,8 @@ from openvenues.extract.util import *
 
 logger = logging.getLogger('geojson')
 
+def random_guid():
+    return str(uuid.uuid4())
 
 def gen_venues(d, require_latlon=True):
     for filename in os.listdir(d):
@@ -107,16 +111,16 @@ def main(input_dir, output_dir, require_latlon=True):
                 h = hash((name, street, lat, lon, domain))
             else:
                 h = hash((name, street, domain))
+            props['guid'] = props.get('guid', random_guid())
+            venue = venue_to_geojson(props)
             if require_latlon and lat is not None and lon is not None and h not in seen:
                 cities = list(rtree.intersection((lon, lat, lon, lat)))
                 if cities:
                     for c in cities:
                         f = files[city_names[c]]
-                    f.write(json.dumps(venue_to_geojson(props)) + '\n')
+                    f.write(json.dumps(venue) + '\n')
             if h not in seen:
-                if require_latlon:
-                    venue = venue_to_geojson(props)
-                else:
+                if not require_latlon:
                     venue = props
                 planet.write(json.dumps(venue) + '\n')
 
