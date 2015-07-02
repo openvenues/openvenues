@@ -117,9 +117,9 @@ def main(input_dir, output_dir):
                     for c in cities:
                         f = files[city_names[c]]
                     f.write(json.dumps(venue) + '\n')
-            if planet_hash not in seen:
-                planet.write(json.dumps(venue) + '\n')
-                seen.add(planet_hash)
+                if planet_hash not in seen:
+                    planet.write(json.dumps(venue) + '\n')
+                    seen.add(planet_hash)
             if address_hash not in seen:
                 planet_addresses_only.write(json.dumps(props) + '\n')
                 seen.add(address_hash)
