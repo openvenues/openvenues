@@ -112,6 +112,8 @@ def main(input_dir, output_dir):
             props['guid'] = props.get('guid', random_guid())
             venue = venue_to_geojson(props)
             if lat is not None and lon is not None and planet_hash not in seen:
+                lat = float(lat)
+                lon = float(lon)
                 cities = list(rtree.intersection((lon, lat, lon, lat)))
                 if cities:
                     for c in cities:
