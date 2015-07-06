@@ -174,7 +174,7 @@ def schema_dot_org_props(item, item_type, require_latlon=True):
                 name = aprop.get('name', '').strip().lower()
                 name = field_map.get(name, name)
                 value = normalize_schema_dot_org_value(aprop)
-                if name in street_props:
+                if name in street_props and value:
                     have_address = True
                 if name and value:
                     props[name] = value
@@ -208,8 +208,10 @@ def schema_dot_org_props(item, item_type, require_latlon=True):
                 if name and value:
                     props[name] = value
         elif name == 'name':
-            have_name = True
             value = prop.get('value')
+            if (value or '').strip():
+                have_name = True
+
             if prop.get('value_attr') == 'href':
                 value = prop.get('text', '').strip()
                 if not value:
@@ -220,8 +222,8 @@ def schema_dot_org_props(item, item_type, require_latlon=True):
             continue
         elif 'properties' not in prop:
             name = field_map.get(name, name)
-            value = normalize_schema_dot_org_value(prop)                
-            if name == 'street_address':
+            value = normalize_schema_dot_org_value(prop)
+            if name == 'street_address' and value:
                 have_address = True
             elif name in ('latitude', 'longitude'):
                 have_latlon = True
@@ -253,7 +255,8 @@ def vcard_props(item, require_latlon=True):
         if name in street_props and value:
             have_address = True
         elif name == 'org_name' or (name == 'name' and 'org_name' not in prop_names):
-            have_name = True
+            if value:
+                have_name = True
             name = 'name'
             if prop.get('value_attr') == 'href':
                 value = prop.get('text', '').strip()
@@ -288,6 +291,7 @@ def og_props(item, item_type, require_latlon=True):
 
     for key, value in item.iteritems():
         name = key.rsplit(':', 1)[-1].lower()
+        value = (value or '').strip()
 
         if name in latitude_props:
             name = 'latitude'
@@ -297,10 +301,12 @@ def og_props(item, item_type, require_latlon=True):
             have_latlon = True
         elif name in street_props:
             name = 'street_address'
-            have_address = True
+            if value:
+                have_address = True
         elif name == 'title':
             name = 'name'
-            have_name = True
+            if value:
+                have_name = True
         else:
             name = name.replace('-', '_')
         props[name] = value
