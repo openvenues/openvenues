@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import logging
 import os
 import subprocess
@@ -75,7 +76,7 @@ def main(input_dir, output_dir):
     city_names = []
     rtree = RTreeIndex()
 
-    cities_filename = os.path.join(tempfile.gettempdir(), 'cities.json') 
+    cities_filename = os.path.join(tempfile.gettempdir(), 'cities.json')
 
     subprocess.check_call(['wget', 'https://raw.githubusercontent.com/mapzen/metroextractor-cities/master/cities.json', '-O', cities_filename])
 
@@ -107,8 +108,8 @@ def main(input_dir, output_dir):
             props['url'] = url
             street = props.get('street_address')
             name = props.get('name')
-            planet_hash = hash((name, street, lat, lon, domain))
-            address_hash = hash((name, street, domain))
+            planet_hash = hashlib.md5(u'|'.join((name, street, lat, lon, domain)).encode('utf-8')).digest()
+            address_hash = hashlib.md5(u'|'.join((name, street, domain)).encode('utf-8')).digest()
             props['guid'] = props.get('guid', random_guid())
             venue = venue_to_geojson(props)
             if lat is not None and lon is not None:
