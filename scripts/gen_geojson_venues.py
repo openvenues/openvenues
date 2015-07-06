@@ -108,7 +108,7 @@ def main(input_dir, output_dir):
             props['url'] = url
             street = props.get('street_address')
             name = props.get('name')
-            planet_hash = hashlib.md5(u'|'.join((name, street, lat, lon, domain)).encode('utf-8')).digest()
+            planet_hash = hashlib.md5(u'|'.join((name, street, str(lat), str(lon), domain)).encode('utf-8')).digest()
             address_hash = hashlib.md5(u'|'.join((name, street, domain)).encode('utf-8')).digest()
             props['guid'] = props.get('guid', random_guid())
             venue = venue_to_geojson(props)
