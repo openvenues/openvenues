@@ -176,6 +176,7 @@ def schema_dot_org_props(item, item_type, require_latlon=True):
                 value = normalize_schema_dot_org_value(aprop)
                 if name in street_props and value:
                     have_address = True
+                    name = 'street_address'
                 if name and value:
                     props[name] = value
         elif name == 'geo':
@@ -254,6 +255,7 @@ def vcard_props(item, require_latlon=True):
         value = prop.get('value', '').strip()
         if name in street_props and value:
             have_address = True
+            name = 'street_address'
         elif name == 'org_name' or (name == 'name' and 'org_name' not in prop_names):
             if value:
                 have_name = True
